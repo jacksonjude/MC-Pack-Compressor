@@ -5,7 +5,8 @@ Compresses Minecraft resourcepacks by comparing the resourcepack assets folder t
 ## Setup
 
 - Run:
-
+        
+        cd MC-Pack-Compressor
         npm install
 
 - Get the path of the resourcepack, Minecraft version number, and any files/folders to not include
