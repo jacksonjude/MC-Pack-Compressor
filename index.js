@@ -7,7 +7,6 @@ const path = require('path')
 
 const VERSION_MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
 const ASSETS_FOLDER_NAME = "assets"
-const RESOURCE_PACK_SOURCE_FOLDER_NAME = "rp-source"
 
 function fetchVersionManifest(manifestURL)
 {
@@ -274,7 +273,7 @@ async function app()
   var assetFolderName = await downloadDefaultAssets(process.argv[3], VERSION_MANIFEST_URL, __dirname, ASSETS_FOLDER_NAME)
   var assetFolderPath = __dirname + "/" + assetFolderName
 
-  var resourcepackFolderName = path.basename(process.argv[2] || RESOURCE_PACK_SOURCE_FOLDER_NAME)
+  var resourcepackFolderName = path.basename(process.argv[2])
   var resourcepackFolderPath = __dirname + "/" + resourcepackFolderName
 
   console.log("Copying resourcepack: " + resourcepackFolderName)
