@@ -46,7 +46,7 @@ function fetchVersionJSON(versionJSONURL)
 function downloadJarFile(clientJarURL, pwd, filename)
 {
   var downloadJarPromise = new Promise((resolve, reject) => {
-    if (fs.existsSync(pwd + "/" + jarFilename))
+    if (fs.existsSync(pwd + "/" + filename))
     {
       resolve()
     }
