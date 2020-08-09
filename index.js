@@ -2,7 +2,7 @@ const tiny = require('tiny-json-http')
 const https = require('https')
 const fs = require('fs')
 const fse = require('fs-extra')
-const { zip, zipContents, unzip } = require('@papb/zip')
+const { zipContents, unzip } = require('@papb/zip')
 const path = require('path')
 
 const VERSION_MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
@@ -261,7 +261,7 @@ function zipResourcePack(resourcepackPath, newFilepath)
     {
       fs.unlinkSync(newFilepath)
     }
-    await zip(resourcepackPath, path.basename(newFilepath))
+    await zipContents(resourcepackPath, path.basename(newFilepath))
     resolve()
   })
 
