@@ -1,6 +1,6 @@
 # MC-Pack-Compressor
 
-Compresses Minecraft resourcepacks by comparing the resourcepack assets folder to the default Minecraft assets folder
+Compresses Minecraft resourcepacks by comparing the resourcepack assets folder to the default Minecraft assets folder. It then removes any excess files that would not be used as altered assets.
 
 ## Setup
 
