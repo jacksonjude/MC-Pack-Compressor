@@ -4,9 +4,48 @@ const fs = require('fs')
 const fse = require('fs-extra')
 const { zipContents, unzip } = require('@papb/zip')
 const path = require('path')
+const crypto = require('crypto')
 
 const VERSION_MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
 const ASSETS_FOLDER_NAME = "assets"
+
+const MC_VER_ARG_KEY = "mcver"
+const REMOVE_FILES_ARG_KEY = "removefiles"
+const KEEP_FILES_ARG_KEY = "keepfiles"
+
+function getArgArray(rawArgs)
+{
+  var arguments = {}
+  arguments[MC_VER_ARG_KEY] = null
+  arguments[REMOVE_FILES_ARG_KEY] = []
+  arguments[KEEP_FILES_ARG_KEY] = []
+
+  for (argNum in rawArgs)
+  {
+    if (argNum <= 2) { continue }
+    if (!rawArgs[argNum].includes("=")) { continue }
+
+    var argumentKeyValue = rawArgs[argNum].split("=")
+    if (argumentKeyValue[1] == "") { continue }
+
+    switch (argumentKeyValue[0])
+    {
+      case MC_VER_ARG_KEY:
+      arguments[MC_VER_ARG_KEY] = argumentKeyValue[1]
+      break
+
+      case REMOVE_FILES_ARG_KEY:
+      arguments[REMOVE_FILES_ARG_KEY] = argumentKeyValue[1].split(" ")
+      break
+
+      case KEEP_FILES_ARG_KEY:
+      arguments[KEEP_FILES_ARG_KEY] = argumentKeyValue[1].split(" ")
+      break
+    }
+  }
+
+  return arguments
+}
 
 function fetchVersionManifest(manifestURL)
 {
@@ -46,10 +85,6 @@ function fetchVersionJSON(versionJSONURL)
 function downloadJarFile(clientJarURL, pwd, filename)
 {
   var downloadJarPromise = new Promise((resolve, reject) => {
-    if (fs.existsSync(pwd + "/" + filename))
-    {
-      resolve()
-    }
     var clientJar = fs.createWriteStream(filename)
     var jarRequest = https.get(clientJarURL, (data) => {
       data.pipe(clientJar).on('finish', () => {
@@ -59,6 +94,52 @@ function downloadJarFile(clientJarURL, pwd, filename)
   })
 
   return downloadJarPromise
+}
+
+function getJarHash(filename, pwd)
+{
+  var getHashPromise = new Promise((resolve, reject) => {
+    var fd = fs.createReadStream(pwd + "/" + filename);
+    var hash = crypto.createHash('sha1');
+    hash.setEncoding('hex');
+
+    fd.on('end', () => {
+      hash.end()
+      resolve(hash.read())
+    })
+
+    fd.pipe(hash)
+  })
+
+  return getHashPromise
+}
+
+function shouldDownloadJar(filename, version, pwd, hash)
+{
+  var shouldDownloadPromise = new Promise(async (resolve, reject) => {
+    if (fs.existsSync(pwd + "/" + filename))
+    {
+      if (fs.existsSync(pwd + "/" + version))
+      {
+        fs.rmdirSync(pwd + "/" + version, { recursive: true })
+      }
+
+      var jarHash = await getJarHash(filename, pwd)
+      if (jarHash == hash)
+      {
+        resolve(false)
+      }
+      else
+      {
+        fs.unlinkSync(pwd + "/" + filename)
+        resolve(true)
+      }
+    }
+
+    resolve(true)
+  })
+
+  return shouldDownloadPromise
 }
 
 function unzipJarFile(filename, pwd, foldername)
@@ -131,8 +212,13 @@ async function downloadDefaultAssets(versionToDownload, manifestURL, currentDire
     if (!fs.existsSync(currentDirectory + "/" + newAssetsFolderName))
     {
       var clientJarURL = versionJSON.downloads.client.url
-      console.log("  Downloading: " + clientJarURL)
-      await downloadJarFile(clientJarURL, currentDirectory, jarFilename)
+
+      var downloadJar = await shouldDownloadJar(jarFilename, versionToDownload, currentDirectory, versionJSON.downloads.client.sha1)
+      if (downloadJar)
+      {
+        console.log("  Downloading: " + clientJarURL)
+        await downloadJarFile(clientJarURL, currentDirectory, jarFilename)
+      }
 
       console.log("  Unzipping: " + jarFilename)
       await unzipJarFile(jarFilename, currentDirectory, versionToDownload)
@@ -217,7 +303,7 @@ function searchThroughFolder(folderPath, pathToDelete)
   }
 }
 
-function compareFolders(resourcepackPath, assetsPath, folderLayerDepth, initialPath)
+function compareFolders(resourcepackPath, assetsPath, keepFiles, folderLayerDepth, initialPath)
 {
   var initialPath = initialPath
   if ((folderLayerDepth || 0) == 0)
@@ -238,15 +324,15 @@ function compareFolders(resourcepackPath, assetsPath, folderLayerDepth, initialP
     {
       if (fs.existsSync(assetsPath + "/" + basePath))
       {
-        compareFolders(fullPath, assetsPath + "/" + basePath, (folderLayerDepth || 0)+1, initialPath)
+        compareFolders(fullPath, assetsPath + "/" + basePath, keepFiles, parseInt(folderLayerDepth || 0)+1, initialPath)
       }
-      else
+      else if (!keepFiles.includes(assetsPath + "/" + basePath) && !keepFiles.includes("*/" + basePath))
       {
         console.log("  ".repeat(folderLayerDepth) + "Removing " + fullPath.replace(initialPath, ""))
         fs.rmdirSync(fullPath, { recursive: true })
       }
     }
-    else if (!fs.existsSync(assetsPath + "/" + basePath))
+    else if (!fs.existsSync(assetsPath + "/" + basePath) && !keepFiles.includes(assetsPath + "/" + basePath) && !keepFiles.includes("*/" + basePath))
     {
       console.log("  ".repeat(folderLayerDepth) + "Removing " + fullPath.replace(initialPath, ""))
       fs.unlinkSync(fullPath)
@@ -270,7 +356,16 @@ function zipResourcePack(resourcepackPath, newFilepath)
 
 async function app()
 {
-  var assetFolderName = await downloadDefaultAssets(process.argv[3], VERSION_MANIFEST_URL, __dirname, ASSETS_FOLDER_NAME)
+  if (process.argv.length < 2)
+  {
+    console.log("ERR: Resourcepack path not provided (usage: npm start <resourcepack path> args...)")
+    return
+  }
+
+  var inputArguments = getArgArray(process.argv)
+  console.log(inputArguments)
+
+  var assetFolderName = await downloadDefaultAssets(inputArguments[MC_VER_ARG_KEY], VERSION_MANIFEST_URL, __dirname, ASSETS_FOLDER_NAME)
   var assetFolderPath = __dirname + "/" + assetFolderName
 
   var resourcepackFolderName = path.basename(process.argv[2])
@@ -279,16 +374,18 @@ async function app()
   console.log("Copying resourcepack: " + resourcepackFolderName)
   await copyResourcepackFolder(process.argv[2], resourcepackFolderPath)
 
-  if (process.argv.length >= 5)
+  if (inputArguments[REMOVE_FILES_ARG_KEY].length > 0)
   {
-    var filesToIgnore = process.argv.concat()
-    filesToIgnore.splice(0, 4)
-    console.log("Removing files: " + filesToIgnore)
-    removeIgnoredFiles(resourcepackFolderPath, filesToIgnore)
+    console.log("Removing files: " + inputArguments[REMOVE_FILES_ARG_KEY])
+    removeIgnoredFiles(resourcepackFolderPath, inputArguments[REMOVE_FILES_ARG_KEY])
   }
 
   console.log("Comparing " + resourcepackFolderName + " to " + assetFolderName)
-  compareFolders(resourcepackFolderPath + "/" + ASSETS_FOLDER_NAME, assetFolderPath)
+  if (inputArguments[KEEP_FILES_ARG_KEY].length > 0)
+  {
+    console.log("(Keeping files: " + inputArguments[KEEP_FILES_ARG_KEY] + " during comparison)")
+  }
+  compareFolders(resourcepackFolderPath + "/" + ASSETS_FOLDER_NAME, assetFolderPath, inputArguments[KEEP_FILES_ARG_KEY])
 
   console.log("Zipping " + resourcepackFolderName)
   await zipResourcePack(resourcepackFolderPath, resourcepackFolderPath + ".zip")

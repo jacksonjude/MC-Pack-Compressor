@@ -1,0 +1,40 @@
+#!/bin/zsh
+# Universal compile script for zipping pack, with options in rpc.config (auto-generated)
+
+packdir="$(dirname "$0")"
+
+cd "$packdir"
+cd ..
+
+# Download RPC
+if [ ! -d "MC-Pack-Compressor" ]
+then
+  git clone https://github.com/jacksonjude/MC-Pack-Compressor.git
+fi
+cd MC-Pack-Compressor
+npm install --silent
+
+if [ -z "$packdir"/rpc.properties ]
+then
+  cp rpc.config "$packdir"/rpc.properties
+fi
+
+# Load options from rpcconfig
+rpcconfigpath="$packdir"/rpc.properties
+mcver=$(grep '^mcver=.*$' "$rpcconfigpath")
+removefiles=$(grep '^removefiles=.*$' "$rpcconfigpath")
+keepfiles=$(grep '^keepfiles=.*$' "$rpcconfigpath")
+removerpc=${$(grep '^removerpc=.*$' "$rpcconfigpath")/removerpc=/}
+
+# Run the program
+npm start "$packdir" $mcver $removefiles $keepfiles
+
+# Move the zip to the parent directory
+mv "$(basename "$packdir")".zip ../"$(basename "$packdir")".zip
+cd ..
+
+# Delete RPC
+if [ $removerpc = "true" ]
+then
+  rm -Rf MC-Pack-Compressor
+fi
