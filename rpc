@@ -14,9 +14,9 @@ fi
 cd MC-Pack-Compressor
 npm install --silent
 
-if [ -z "$packdir"/rpc.properties ]
+if [ ! -f "$packdir/rpc.properties" ]
 then
-  cp rpc.config "$packdir"/rpc.properties
+  cp rpc.properties "$packdir/rpc.properties"
 fi
 
 # Load options from rpcconfig
@@ -34,7 +34,7 @@ mv "$(basename "$packdir")".zip ../"$(basename "$packdir")".zip
 cd ..
 
 # Delete RPC
-if [ $removerpc = "true" ]
+if [ -z $removerpc ] || [ $removerpc = "true" ]
 then
   rm -Rf MC-Pack-Compressor
 fi
