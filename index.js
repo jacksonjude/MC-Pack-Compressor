@@ -305,6 +305,12 @@ function searchThroughFolder(folderPath, pathToDelete)
 
 function compareFolders(resourcepackPath, assetsPath, keepFiles, folderLayerDepth, initialPath)
 {
+  if (!fs.existsSync(resourcepackPath))
+  {
+    console.log("WARN: Path - " + resourcepackPath + " does not exist")
+    return
+  }
+
   var initialPath = initialPath
   if ((folderLayerDepth || 0) == 0)
   {
