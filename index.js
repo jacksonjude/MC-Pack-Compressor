@@ -2,7 +2,7 @@ const tiny = require('tiny-json-http')
 const https = require('https')
 const fs = require('fs')
 const fse = require('fs-extra')
-const { zipContents, unzip } = require('@papb/zip')
+const { zipDirContents, unzip } = require('@papb/zip')
 const path = require('path')
 const crypto = require('crypto')
 
@@ -353,7 +353,7 @@ function zipResourcePack(resourcepackPath, newFilepath)
     {
       fs.unlinkSync(newFilepath)
     }
-    await zipContents(resourcepackPath, path.basename(newFilepath))
+    await zipDirContents(resourcepackPath, path.basename(newFilepath))
     resolve()
   })
 
