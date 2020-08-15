@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@papb/zip": "^2.0.6",
+    "@papb/zip": "^3.0.0",
     "fs": "0.0.1-security",
     "fs-extra": "^9.0.1",
     "https": "^1.0.0",
